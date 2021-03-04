@@ -4,13 +4,9 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin && expor
 ## wget --no-check-certificate https://raw.githubusercontent.com/mixool/HiCnUnicom/master/CnUnicom.sh && chmod +x CnUnicom.sh && bash CnUnicom.sh membercenter 13800008888@112233 18388880000@123456
 ### bash <(curl -m 10 -s https://raw.githubusercontent.com/mixool/HiCnUnicom/master/CnUnicom.sh) membercenter 13800008888@112233 18388880000@123456
 
-# 需传入参数,含义可以阅读脚本理解或者参考：https://github.com/hzys/HiCnUnicom 参数中含有fromfile就从文件读取配置：fromfile@/etc/.HiCnUnicom 
-echo $@ | grep -qE "fromfile@[^ ]+" && all_parameter=($(cat $(echo $@ | grep -oE "fromfile@[^ ]+" | cut -f2 -d@))) || all_parameter=($(echo $@))
-[[ ${all_parameter[*]} == "" ]] && echo 获取传入参数失败 && exit 1
-
-# 传入参数手机号@密码为必需参数：13800008888@112233 18388880000@123456
-all_username_password=($(echo ${all_parameter[*]} | grep -oE "1[0-9]{10}@[0-9]{6}"| sort -u | tr "\n" " "))
-[[ $all_username_password == "" ]] && echo "账号密码参数错误" && exit 1
+# 传入参数格式，支持多账号，手机号@密码必需：13800008888@112233 18388880000@123456
+[[ $# != 0 ]] && all_parameter=($(echo $@)) || { echo 'Err  !!! Useage: bash this_script.sh membercenter 13800008888@112233 18388880000@123456'; exit 1; }
+all_username_password=($(echo ${all_parameter[*]} | grep -oE "[0-9]{11}@[0-9]{6}"| sort -u | tr "\n" " "))
 
 # 登录失败尝试修改以下这个appId的值为抓包获取的登录过的联通app,也可使用传入参数 appId@*************
 appId=247b001385de5cc6ce11731ba1b15835313d489d604e58280e455a6c91e5058651acfb0f0b77029c2372659c319e02645b54c0acc367e692ab24a546b83c302d
@@ -28,11 +24,8 @@ echo ${all_parameter[*]} | grep -qE "githubaction" && workdirbase="$(pwd)/CnUnic
 unicom_version=8.0200
 
 #####
-## 流量激活功能需要传入参数,中间d表示每天,w表示每周一,m代表每月第一天和第二天,格式： liulactive@d@ff80808166c5ee6701676ce21fd14716
-## 部分号码每周一激活流量激活4GB流量七日包：liulactive@w@20080615550312483@13012341234-18812341234
-## 每月第一天和第二天激活我的礼包-流量包-1G日包：liulactive@m@null@13012341234@mygiftbag
-## 每日激活2类流量日包： liulactive@d@ff80808166c5ee6701676ce21fd14716@13012341234-18812341234@mygiftbag
-## 可多次传入用于不同号码激活不同流量包: liulactive@d@ff80808166c5ee6701676ce21fd14716 liulactive@w@null@13800008888-13012341234@mygiftbag
+## 流量激活功能需要传入参数,中间d表示每天,w表示每周一,m代表每月第二天,格式： liulactive@d@ff80808166c5ee6701676ce21fd14716
+## 如仅需要部分号码激活流量包时使用参数格式：liulactive@d@ff80808166c5ee6701676ce21fd14716@13012341234-18812341234
 ## 1GB日包：          ff80808166c5ee6701676ce21fd14716
 ## 2GB日包:           21010621565413402
 ## 5GB日包:           21010621461012371
@@ -97,7 +90,7 @@ EOF
     data="deviceId=$deviceId&netWay=Wifi&reqtime=$(date +%s)$(shuf -i 100-999 -n 1)&flushkey=1&version=android%40${unicom_version}&deviceModel=MI%209&token_online=$(cat $workdir/token_online | grep -oE "token_online\":\"[^\"]*" | cut -f3 -d\")&appId=$appId&deviceBrand=Xiaomi&deviceCode=$deviceId"
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie -c $workdir/cookie --data "$data" https://m.client.10010.com/mobileService/onLine.htm >$workdir/token_online
     cat $workdir/token_online | grep -qE "token_online" && status=0 || status=1
-    [[ $status == 0 ]] && echo && echo $(date) cookies登录${username:0:2}******${username:8}成功
+    [[ $status == 0 ]] && echo && echo $(date) cookies登录${username:0:2}******${username:9}成功
     
     # 账号密码登录
     if [[ $status == 1 ]]; then
@@ -105,8 +98,8 @@ EOF
         curl -m 10 -X POST -sA "$UA" -c $workdir/cookie "https://m.client.10010.com/mobileService/logout.htm?&desmobile=$username&version=android%40$unicom_version" >/dev/null
         curl -m 10 -sA "$UA" -b $workdir/cookie -c $workdir/cookie -d @$workdir/signdata "https://m.client.10010.com/mobileService/login.htm" >$workdir/token_online
         token=$(cat $workdir/cookie | grep -E "a_token" | awk  '{print $7}')
-        [[ "$token" = "" ]] && echo && echo $(date) ${username:0:2}******${username:8} Login Failed. && rm -rf $workdir && return 1
-        echo && echo $(date) 密码登录${username:0:2}******${username:8}成功
+        [[ "$token" = "" ]] && echo && echo $(date) ${username:0:2}******${username:9} Login Failed. && rm -rf $workdir && return 1
+        echo && echo $(date) 密码登录${username:0:2}******${username:9}成功
     fi
 }
 
@@ -161,7 +154,7 @@ function membercenter() {
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie "https://act.10010.com/SigninApp/signin/daySign?vesion=0.$(shuf -i 1234567890123456-9876543210654321 -n 1)"
     echo && echo
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie "https://act.10010.com/SigninApp/signin/todaySign" | grep -oE "status\":\"[0-9]+"
-    
+
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie "https://act.10010.com/SigninApp/signin/getContinuous"
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie "https://act.10010.com/SigninApp/signin/getIntegral"
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie "https://act.10010.com/SigninApp/signin/getGoldTotal"
@@ -171,7 +164,7 @@ function membercenter() {
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie "https://act.10010.com/SigninApp/doTask/finishVideo"
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie "https://act.10010.com/SigninApp/doTask/getTaskInfo"
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie "https://act.10010.com/SigninApp/doTask/getPrize"
-    
+
     # 三次金币抽奖， 每日最多可花费金币执行十三次
     echo && echo
     usernumberofjsp=$(curl -m 10 -sA "$UA" -b $workdir/cookie https://m.client.10010.com/dailylottery/static/textdl/userLogin | grep -oE "encryptmobile=\w*" | awk -F"encryptmobile=" '{print $2}'| head -n1)
@@ -224,57 +217,62 @@ function membercenter() {
 }
 
 function liulactive() {
-    # 流量激活功能,可多次传入用于不同号码激活不同流量包: liulactive@d@ff80808166c5ee6701676ce21fd14716@13012341234 liulactive@w@20080615550312483@13800008888-13012341234@mygiftbag
-    liulactivelist=($(echo ${all_parameter[*]} | grep -oE "liulactive@[mwd]@[0-9a-z@-]+" | tr "\n" " ")) && [[ ${#liulactivelist[*]} == 0 ]] && return 0
+    # 流量激活功能
+    echo ${all_parameter[*]} | grep -qE "liulactive@[mwd]@[0-9a-z]+" || return 0
+    timeparId=$(echo ${all_parameter[*]} | grep -oE "liulactive@[mwd]@[0-9a-z]+" | cut -f2 -d@)
+    productId=$(echo ${all_parameter[*]} | grep -oE "liulactive@[mwd]@[0-9a-z]+" | cut -f3 -d@)
+    choosenos=$(echo ${all_parameter[*]} | grep -oE "liulactive@[mwd]@[0-9a-z]+@.*" | cut -f4 -d@)
+    # 依照参数m|w|d来判断是否执行
+    unset liulactive_run
+    [[ ${timeparId} == "m" ]] && [[ "$(date +%d)" == "02" ]] && liulactive_run=true
+    [[ ${timeparId} == "w" ]] && [[ "$(date +%u)" == "1" ]]  && liulactive_run=true
+    [[ ${timeparId} == "d" ]] && liulactive_run=true
+    [[ "$liulactive_run" == "true" ]] || return 0
+    # 依照参数choosenos来判断是否是指定号码执行,激活功能的参数全格式： liulactive@d@ff80808166c5ee6701676ce21fd14716@13012341234-13112341234
+    unset liulactive_only
+    [[ $choosenos != "" ]] && echo $choosenos | grep -qE "${username}" && liulactive_only=true
+    [[ $choosenos == "" ]] && liulactive_only=true
+    [[ "$liulactive_only" == "true" ]] || return 0
+    # 激活请求
     echo && echo starting liulactive...
-    rm -rf $workdir/liulactive.info
-    for ((i = 0; i < ${#liulactivelist[*]}; i++)); do  
-        unset liulactive_run liulactive_only
-        timeparId=$(echo ${liulactivelist[i]} | cut -f2 -d@)
-        productId=$(echo ${liulactivelist[i]} | cut -f3 -d@)
-        choosenos=$(echo ${liulactivelist[i]} | cut -f4 -d@)
-        mygiftbag=$(echo ${liulactivelist[i]} | cut -f5 -d@)
-        # 依照参数m|w|d来判断是否执行,分别代表每月一号和二号|每周一|每天
-        [[ ${timeparId} == "m" ]] && [[ "$(date +%d)" == "01" ]] && liulactive_run=true
-        [[ ${timeparId} == "m" ]] && [[ "$(date +%d)" == "02" ]] && liulactive_run=true
-        [[ ${timeparId} == "w" ]] && [[ "$(date +%u)" == "1" ]]  && liulactive_run=true
-        [[ ${timeparId} == "d" ]] && liulactive_run=true
-        [[ "$liulactive_run" == "true" ]] || continue
-        # 依照参数choosenos来判断是否是指定号码执行,未指定时全部号码均运行 | 如使用mygiftbag参数则必须指定号码
-        [[ $choosenos != "" ]] && echo $choosenos | grep -qE "${username}" && liulactive_only=true
-        [[ $choosenos == "" ]] && liulactive_only=true
-        [[ "$liulactive_only" == "true" ]] || continue
-        # 我的礼包-流量兑换-激活请求,当参数为null时不执行
-        if [[ "$productId" != "null" ]]; then
-            curl -m 10 -sA "$UA" -b $workdir/cookie -c $workdir/cookie_liulactive "https://m.client.10010.com/MyAccount/trafficController/myAccount.htm?flag=1&curl -m 10=https://m.client.10010.com/myPrizeForActivity/querywinninglist.htm?pageSign=1" >$workdir/liulactive.log
-            liulactiveuserLogin="$(cat $workdir/liulactive.log | grep "refreshAccountTime" | grep -oE "[0-9_]+")"
-            curl -m 10 -sA "$UA" -b $workdir/cookie_liulactive -c $workdir/cookie_liulactive "https://m.client.10010.com/MyAccount/MyGiftBagController/refreshAccountTime.htm?userLogin=$liulactiveuserLogin&accountType=FLOW" >/dev/null
-            curl -m 10 -X POST -sA "$UA"  -b $workdir/cookie_liulactive -c $workdir/cookie_liulactive --data "thirdUrl=thirdUrl=https%3A%2F%2Fm.client.10010.com%2FMyAccount%2FtrafficController%2FmyAccount.htm" https://m.client.10010.com/mobileService/customer/getShareRedisInfo.htm >/dev/null
-            Referer="https://m.client.10010.com/MyAccount/trafficController/myAccount.htm?flag=1&curl -m 10=https://m.client.10010.com/myPrizeForActivity/querywinninglist.htm?pageSign=1"
-            curl -m 10 -X POST -sA "$UA" -e "$Referer" -b $workdir/cookie_liulactive -c $workdir/cookie_liulactive --data "productId=$productId&userLogin=$liulactiveuserLogin&ebCount=1000000&pageFrom=4" "https://m.client.10010.com/MyAccount/exchangeDFlow/exchange.htm?userLogin=$liulactiveuserLogin" >$workdir/liulactive.log2
-            cat $workdir/liulactive.log2 | grep -oE ">.+<" | head -n 3 | awk -F'[><]' '{print $2,$4}' | tr "\n" " " >>$workdir/liulactive.info
-        fi
-        # 我的礼包-流量包-1G日包对应activeCode为73或者2534,当参数mygiftbag存在时运行: liulactive@d@ff80808166c5ee6701676ce21fd14716@13012341234@mygiftbag
-        if [[ "$mygiftbag" != "" ]]; then
-            curl -m 10 -X POST -sA "$UA"  -b $workdir/cookie --data "typeScreenCondition=2&category=FFLOWPACKET&pageSign=1&CALLBACKURL=https%3A%2F%2Fm.client.10010.com%2FmyPrizeForActivity%2Fquerywinninglist.htm" http://m.client.10010.com/myPrizeForActivity/mygiftbag.htm >$workdir/libaollactive.log
-            mygiftbaglist=($(cat $workdir/libaollactive.log | grep -oE "(73|2534)','[a-zA-Z0-9]+" | sed "s/','/@/g" | tr "\n" " "))
-            for ((j = 0; j < ${#mygiftbaglist[*]}; j++)); do
-                curl -m 10 -X POST -sA "$UA"  -b $workdir/cookie --data "activeCode=${mygiftbaglist[j]%@*}&prizeRecordID=${mygiftbaglist[j]#*@}&userNumber=${username}" http://m.client.10010.com/myPrizeForActivity/queryPrizeDetails.htm >$workdir/libaollactive.log2
-                cat $workdir/libaollactive.log2 | grep -A 15 "奖品状态" | grep -qE "(未激活|激活失败)" || continue
-                libaollName=$(urlencode $(cat $workdir/libaollactive.log2 | grep "id=\"activeName" | cut -f4 -d\") | tr "a-z" "A-Z")
-                curl -m 10 -X POST -sA "$UA"  -b $workdir/cookie --data "activeCode=${mygiftbaglist[j]%@*}&prizeRecordID=${mygiftbaglist[j]#*@}&activeName=$libaollName" http://m.client.10010.com/myPrizeForActivity/myPrize/activationFlowPackages.htm | grep -oE "activationlimit"  && echo 我的礼包-流量包-1G日包-激活失败 >>$workdir/liulactive.info && break
-                sleep 10
-                curl -m 10 -X POST -sA "$UA"  -b $workdir/cookie --data "activeCode=${mygiftbaglist[j]%@*}&prizeRecordID=${mygiftbaglist[j]#*@}&userNumber=${username}" http://m.client.10010.com/myPrizeForActivity/queryPrizeDetails.htm | grep -A 15 "奖品状态" | grep -qE "已激活" && echo 我的礼包-流量包-1G日包-激活成功 >>$workdir/liulactive.info && break
-            done
-        fi      
-    done
+    curl -m 10 -sA "$UA" -b $workdir/cookie -c $workdir/cookie_liulactive "https://m.client.10010.com/MyAccount/trafficController/myAccount.htm?flag=1&curl -m 10=https://m.client.10010.com/myPrizeForActivity/querywinninglist.htm?pageSign=1" >$workdir/liulactive.log
+    liulactiveuserLogin="$(cat $workdir/liulactive.log | grep "refreshAccountTime" | grep -oE "[0-9_]+")"
+    curl -m 10 -sA "$UA" -b $workdir/cookie_liulactive -c $workdir/cookie_liulactive "https://m.client.10010.com/MyAccount/MyGiftBagController/refreshAccountTime.htm?userLogin=$liulactiveuserLogin&accountType=FLOW" >/dev/null
+    curl -m 10 -X POST -sA "$UA"  -b $workdir/cookie_liulactive -c $workdir/cookie_liulactive --data "thirdUrl=thirdUrl=https%3A%2F%2Fm.client.10010.com%2FMyAccount%2FtrafficController%2FmyAccount.htm" https://m.client.10010.com/mobileService/customer/getShareRedisInfo.htm >/dev/null
+    Referer="https://m.client.10010.com/MyAccount/trafficController/myAccount.htm?flag=1&curl -m 10=https://m.client.10010.com/myPrizeForActivity/querywinninglist.htm?pageSign=1"
+    curl -m 10 -X POST -sA "$UA" -e "$Referer" -b $workdir/cookie_liulactive -c $workdir/cookie_liulactive --data "productId=$productId&userLogin=$liulactiveuserLogin&ebCount=1000000&pageFrom=4" "https://m.client.10010.com/MyAccount/exchangeDFlow/exchange.htm?userLogin=$liulactiveuserLogin" | grep -B 1 "正在为您激活"
+}
+
+function libaollactive() {
+    # 我的礼包流量激活功能
+    echo ${all_parameter[*]} | grep -qE "libaollactive@[mwd]" || return 0
+    timeparId=$(echo ${all_parameter[*]} | grep -oE "libaollactive@[mwd]" | cut -f2 -d@)
+    choosenos=$(echo ${all_parameter[*]} | grep -oE "libaollactive@[mwd]@.*" | cut -f3 -d@)
+    # 依照参数m|w|d来判断是否执行
+    unset liulactive_run
+    [[ ${timeparId} == "m" ]] && [[ "$(date +%d)" == "01" ]] && libaollactive_run=true
+    [[ ${timeparId} == "w" ]] && [[ "$(date +%u)" == "1" ]]  && libaollactive_run=true
+    [[ ${timeparId} == "d" ]] && libaollactive_run=true
+    [[ "$libaollactive_run" == "true" ]] || return 0
+    # 依照参数choosenos来判断是否是指定号码执行,激活功能的参数全格式： libaollactive@d@13012341234-13112341234
+    unset libaollactive_only
+    [[ $choosenos != "" ]] && echo $choosenos | grep -qE "${username}" && libaollactive_only=true
+    [[ $choosenos == "" ]] && libaollactive_only=true
+    [[ "$libaollactive_only" == "true" ]] || return 0
+    # 激活请求
+    echo && echo starting libaollactive...
+    curl -m 10 -X POST -sA "$UA"  -b $workdir/cookie --data "typeScreenCondition=2&category=FFLOWPACKET&pageSign=1&CALLBACKURL=https%3A%2F%2Fm.client.10010.com%2FmyPrizeForActivity%2Fquerywinninglist.htm" http://m.client.10010.com/myPrizeForActivity/mygiftbag.htm >$workdir/libaollactive.log
+    libaollCode=$(echo $(cat $workdir/libaollactive.log | grep -m 1 'onclick="toDetailPage' | grep -oE "[0-9yh]+") | awk -F ' ' '{print $1}')
+    libaollID=$(echo $(cat $workdir/libaollactive.log | grep -m 1 'onclick="toDetailPage' | grep -oE "[0-9yh]+") | awk -F ' ' '{print $2}')    
+    libaollName=$(echo $(cat $workdir/libaollactive.log | grep -m 1 '<li>活动') | awk -F '活动：|</li>' '{print $2}' | tr -d '\n' | xxd -plain | sed 's/\(..\)/%\1/g' | tr a-z A-Z)
+    curl -m 10 -X POST -sA "$UA"  -b $workdir/cookie --data "activeCode=$libaollCode&prizeRecordID=$libaollID&activeName=$libaollName" http://m.client.10010.com/myPrizeForActivity/myPrize/activationFlowPackages.htm
 }
 
 function hfgoactive() {
     # 话费购活动，需传入参数 hfgoactive
     echo ${all_parameter[*]} | grep -qE "hfgoactive" || return 0
     echo && echo starting hfgoactive...
-    echo $(echo ${username:0:2}******${username:8}) >$workdir/hfgoactive.info
+    echo $(echo ${username:0:2}******${username:9}) >$workdir/hfgoactive.info
     curl -m 10 -sLA "$UA" -b $workdir/cookie -c $workdir/cookie_hfgo "https://m.client.10010.com/mobileService/openPlatform/openPlatLineNew.htm?to_url=https://account.bol.wo.cn/cuuser/open/openLogin/hfgo&yw_code=&desmobile=${username}&version=android@${unicom_version}" >/dev/null
     # 每日签到并抽奖,抽奖免费3次,连续签到七天获得额外3次，每日签到有机会获取额外机会
     ACTID="$(curl -m 10 -X POST -sA "$UA" -b $workdir/cookie_hfgo --data "positionType=1" https://hfgo.wo.cn/hfgoapi/product/ad/list | grep -oE "atplottery[^?]*" | cut -f2 -d/)"
@@ -321,14 +319,14 @@ function jifeninfo() {
     yesterdayscorelist=($(cat $workdir/jifeninfo.log2 | grep -oE "createTime\":\"$yesterday[^}]*" | grep 'books_oper_type":"0"' | grep -oE "books_number\":[0-9]+" | grep -oE "[0-9]+" | tr "\n" " "))
     for ((i = 0; i < ${#yesterdayscorelist[*]}; i++)); do yesterdayscore=$((yesterdayscore+yesterdayscorelist[i])); done
     # info
-    echo $(echo ${username:0:2}******${username:8}) 总积分:$total 本月将过期积分:$invalid 可用积分:$canUse 奖励积分:$availablescore 本月将过期奖励积分:$invalidscore 本月新增奖励积分:$addScore 本月消耗奖励积分:$decrScore 昨日奖励积分:$yesterdayscore 今日奖励积分:$todayscore
+    echo $(echo ${username:0:2}******${username:9}) 总积分:$total 本月将过期积分:$invalid 可用积分:$canUse 奖励积分:$availablescore 本月将过期奖励积分:$invalidscore 本月新增奖励积分:$addScore 本月消耗奖励积分:$decrScore 昨日奖励积分:$yesterdayscore 今日奖励积分:$todayscore
 }
 
 function otherinfo() {
     # 需传入参数 otherinfo
     echo ${all_parameter[*]} | grep -qE "otherinfo" || return 0
     echo && echo starting otherinfo...
-    echo $(echo ${username:0:2}******${username:8}) >$workdir/otherinfo.info
+    echo $(echo ${username:0:2}******${username:9}) >$workdir/otherinfo.info
     # 套餐
     curl -m 10 -X POST -sA "$UA" -b $workdir/cookie --data "mobile=$username" https://m.client.10010.com/mobileservicequery/operationservice/queryOcsPackageFlowLeftContent >$workdir/otherinfo.log
     addUpItemName=($(cat $workdir/otherinfo.log | grep -oE "addUpItemName\":\"[^\"]*" | cut -f3 -d\" | tr "\n" " "))
@@ -348,7 +346,7 @@ function freescoregift() {
     # 定向积分免费商品信息,需传入参数 freescoregift
     echo ${all_parameter[*]} | grep -qE "freescoregift" || return 0
     echo && echo starting freescoregift...
-    echo $(echo ${username:0:2}******${username:8}) >$workdir/freescoregift.info
+    echo $(echo ${username:0:2}******${username:9}) >$workdir/freescoregift.info
     # 限量免费领取商品
     big_SHELF_ID=8a29ac8975c327170175e40901610c77
     curl -m 10 -X POST -sLA "$UA" -b $workdir/cookie --data "reqsn=&reqtime=$(date +%s)$(shuf -i 100-999 -n 1)&cliver=&reqdata=%7B%7D" "https://m.client.10010.com/welfare-mall-front/mobile/show/getShelvesInfoDetail/v2?relevanceId=$big_SHELF_ID&sort=&category=2&goodsSkuId=undefined" >$workdir/freescoregift.log
@@ -359,67 +357,69 @@ function freescoregift() {
     cat $workdir/freescoregift.info
 }
 
-function formatsendinfo() {
-    # 格式化发送信息到文件供其它通知功能使用,sendsimple参数定义发送文件名,未传入该参数时发送详细信息
-    echo ${all_parameter[*]} | grep -qE "sendsimple" && formatsendinfo_file="$workdir/formatsendinfosimple" || formatsendinfo_file="$workdir/formatsendinfoall"
-    if $(echo ${all_parameter[*]} | grep -qE "sendsimple"); then
-        echo ${userlogin_ook[u]} ${#userlogin_ook[*]} Accomplished. ${userlogin_err[u]} ${#userlogin_err[*]} Failed. >$formatsendinfo_file
-        echo ${all_parameter[*]} | grep -qE "otherinfo"     && echo 可用余额:$curntbalancecust 实时话费:$realfeecust >>$formatsendinfo_file
-        echo ${all_parameter[*]} | grep -qE "jifeninfo"     && echo 积分:$total-$availablescore-$todayscore >>$formatsendinfo_file
-        echo ${all_parameter[*]} | grep -qE "hfgoactive"    && echo 话费购奖品: $(cat $workdir/hfgoactive.info | tail -n +2) >>$formatsendinfo_file
-        echo ${all_parameter[*]} | grep -qE "freescoregift" && echo 定向积分免费商品数量:$(cat $workdir/freescoregift.info | tail -n +3 | grep -cv '^$') >>$formatsendinfo_file
-        echo ${all_parameter[*]} | grep -qE "liulactive" && [[ -f $workdir/liulactive.info ]] && echo 流量激活: $(cat $workdir/liulactive.info) >>$formatsendinfo_file
-    else
-        echo ${userlogin_err[u]} ${#userlogin_err[*]} Failed. ${userlogin_ook[u]} ${#userlogin_ook[*]} Accomplished. >$formatsendinfo_file
-        echo ${all_parameter[*]} | grep -qE "otherinfo" && cat $workdir/otherinfo.info >>$formatsendinfo_file
-        echo ${all_parameter[*]} | grep -qE "jifeninfo" && echo $(echo ${username:0:2}******${username:8}) 总积分:$total 本月将过期积分:$invalid 可用积分:$canUse 奖励积分:$availablescore 本月将过期奖励积分:$invalidscore 本月新增奖励积分:$addScore 本月消耗奖励积分:$decrScore 昨日奖励积分:$yesterdayscore 今日奖励积分:$todayscore >>$formatsendinfo_file
-        echo ${all_parameter[*]} | grep -qE "hfgoactive" && cat $workdir/hfgoactive.info >>$formatsendinfo_file
-        [[ $u == $((${#all_username_password[*]}-1)) ]] && echo ${all_parameter[*]} | grep -qE "freescoregift" && cat $workdir/freescoregift.info >>$formatsendinfo_file
-        echo ${all_parameter[*]} | grep -qE "liulactive" && [[ -f $workdir/liulactive.info ]] && echo 流量激活: $(cat $workdir/liulactive.info) >>$formatsendinfo_file
-    fi
-    cat $formatsendinfo_file
-}
-
-function telegrambot() {
+function tgbotinfo() {
     # TG_BOT通知消息: 未设置相应传入参数时不执行,传入参数格式 token@*** chat_id@*** | google search: telegram bot token chat_id
     echo ${all_parameter[*]} | grep -qE "token@[a-zA-Z0-9:_-]+" && token="$(echo ${all_parameter[*]} | grep -oE "token@[a-zA-Z0-9:_-]+" | cut -f2 -d@)" || return 0
     echo ${all_parameter[*]} | grep -qE "chat_id@[0-9-]+" && chat_id="$(echo ${all_parameter[*]} | grep -oE "chat_id@[0-9-]+" | cut -f2 -d@)" || return 0
-    echo && echo starting telegrambot...
-    curl -m 10 -sX POST "https://api.telegram.org/bot$token/sendMessage" -d "chat_id=$chat_id&text=$(cat $formatsendinfo_file)"
-}
-
-function serverchan() {
-    # serverchan旧版通知消息: sckey@************
-    echo ${all_parameter[*]} | grep -qE "sckey@[a-zA-Z0-9:_-]+" && sckey="$(echo ${all_parameter[*]} | grep -oE "sckey@[a-zA-Z0-9:_-]+" | cut -f2 -d@)" || return 0
-    echo && echo starting serverchan...
-    curl -m 10 -sX POST "https://sc.ftqq.com/$sckey.send" -d "text=$(cat $formatsendinfo_file)"
-}
-
-function bark() {
-    # bark通知消息: bark@************;bark推送不编码有换行推送不了，用tr空格替换了,推送效果极差
-    echo ${all_parameter[*]} | grep -qE "bark@[a-zA-Z0-9:_-]+" && bark="$(echo ${all_parameter[*]} | grep -oE "bark@[a-zA-Z0-9:_-]+" | cut -f2 -d@)" || return 0
-    echo && echo starting bark...
-    curl -m 10 -sX POST "https://api.day.app/$bark/$(cat $formatsendinfo_file | tr "\n" " ")"
+    echo && echo starting tgbotinfo...
+    unset tgsimple sendit
+    
+    # 简约通知信息，需要传入参数 tgsimple
+    echo ${all_parameter[*]} | grep -qE "tgsimple" && tgsimple=true
+    if [[ $tgsimple == "true" ]]; then
+        echo ${userlogin_ook[u]} ${#userlogin_ook[*]} Accomplished. ${userlogin_err[u]} ${#userlogin_err[*]} Failed. >$workdir/tgsimple.info
+        echo ${all_parameter[*]} | grep -qE "otherinfo"     && echo 可用余额:$curntbalancecust 实时话费:$realfeecust >>$workdir/tgsimple.info
+        echo ${all_parameter[*]} | grep -qE "jifeninfo"     && echo 积分:$total-$availablescore-$todayscore >>$workdir/tgsimple.info
+        echo ${all_parameter[*]} | grep -qE "freescoregift" && echo 定向积分免费商品数量:$(cat $workdir/freescoregift.info | tail -n +3 | grep -cv '^$') >>$workdir/tgsimple.info
+        echo ${all_parameter[*]} | grep -qE "hfgoactive"    && echo 话费购奖品: $(cat $workdir/hfgoactive.info | tail -n +2) >>$workdir/tgsimple.info >>$workdir/tgsimple.info
+        cat $workdir/tgsimple.info
+        text="$(cat $workdir/tgsimple.info)"
+        curl -m 10 -sX POST "https://api.telegram.org/bot$token/sendMessage" -d "chat_id=$chat_id&text=$text" >/dev/null; sleep 3
+        return 0
+    fi
+    
+    # 登录状态
+    text="$(echo ${userlogin_err[u]} ${#userlogin_err[*]} Failed. ${userlogin_ook[u]} ${#userlogin_ook[*]} Accomplished.)"
+    curl -m 10 -sX POST "https://api.telegram.org/bot$token/sendMessage" -d "chat_id=$chat_id&text=$text" >/dev/null; sleep 3
+    
+    # 积分信息
+    text="$(echo $(echo ${username:0:2}******${username:9}) 总积分:$total 本月将过期积分:$invalid 可用积分:$canUse 奖励积分:$availablescore 本月将过期奖励积分:$invalidscore 本月新增奖励积分:$addScore 本月消耗奖励积分:$decrScore 昨日奖励积分:$yesterdayscore 今日奖励积分:$todayscore)"
+    echo ${all_parameter[*]} | grep -qE "jifeninfo" && sendit=sendit || sendit=""
+    [[ $sendit == "sendit" ]] && curl -m 10 -sX POST "https://api.telegram.org/bot$token/sendMessage" -d "chat_id=$chat_id&text=$text" >/dev/null; sleep 3
+    
+    # hfgoactive
+#    text="$(cat $workdir/hfgoactive.info)"
+#    echo ${all_parameter[*]} | grep -qE "hfgoactive" && sendit=sendit || sendit=""
+#    [[ $sendit == "sendit" ]] && curl -m 10 -sX POST "https://api.telegram.org/bot$token/sendMessage" -d "chat_id=$chat_id&text=$text" >/dev/null; sleep 3
+    
+    # otherinfo
+    text="$(cat $workdir/otherinfo.info)"
+    echo ${all_parameter[*]} | grep -qE "otherinfo" && sendit=sendit || sendit=""
+    [[ $sendit == "sendit" ]] && curl -m 10 -sX POST "https://api.telegram.org/bot$token/sendMessage" -d "chat_id=$chat_id&text=$text" >/dev/null; sleep 3
+    	
+    if [ $u == $((${#all_username_password[*]}-1)) ]; then
+    # freescoregift
+    text="$(cat $workdir/freescoregift.info)"
+    echo ${all_parameter[*]} | grep -qE "freescoregift" && sendit=sendit || sendit=""
+    [[ $sendit == "sendit" ]] && curl -m 10 -sX POST "https://api.telegram.org/bot$token/sendMessage" -d "chat_id=$chat_id&text=$text" >/dev/null; sleep 3
+    fi
 }
 
 function main() {
     for ((u = 0; u < ${#all_username_password[*]}; u++)); do 
-        sleep $(shuf -i 1-2 -n 1)
+        sleep $(shuf -i 1-10 -n 1)
         username=${all_username_password[u]%@*} && password=${all_username_password[u]#*@}
         UA="Mozilla/5.0 (Linux; Android 11; MI 9 Build/RKQ1.200826.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/87.0.4280.141 Mobile Safari/537.36; unicom{version:android@$unicom_version,desmobile:$username};devicetype{deviceBrand:Xiaomi,deviceModel:MI 9}"
         workdir="${workdirbase}_${username}" && [[ ! -d "$workdir" ]] && mkdir -p $workdir
-        userlogin && userlogin_ook[u]=$(echo ${username:0:2}******${username:8}) || { userlogin_err[u]=$(echo ${username:0:2}******${username:8}); continue; }
+        userlogin && userlogin_ook[u]=$(echo ${username:0:2}******${username:9}) || { userlogin_err[u]=$(echo ${username:0:2}******${username:9}); continue; }
         membercenter
         liulactive
+        libaollactive
         hfgoactive
         jifeninfo
         otherinfo
         freescoregift
-        # 通知
-        formatsendinfo
-        telegrambot
-        serverchan
-        bark
+        tgbotinfo
     done
     echo && echo $(date) ${userlogin_err[*]} ${#userlogin_err[*]} Failed. ${userlogin_ook[*]} ${#userlogin_ook[*]} Accomplished.
     #rm -rf ${workdirbase}_*
